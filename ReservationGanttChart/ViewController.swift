@@ -8,12 +8,22 @@
 
 import UIKit
 
-struct GanttChartItem {
+struct GanttChartItem: Comparable {
     let startDate: Date
     let endDate: Date
     var imageName: String?
     let mainString: String
     let contentString: String
+    
+    static func < (lhs: GanttChartItem, rhs: GanttChartItem) -> Bool {
+        if lhs.startDate < rhs.startDate {
+            return true
+        } else if lhs.startDate == rhs.startDate && lhs.endDate < rhs.endDate {
+            return true
+        }
+        
+        return false
+    }
 }
 
 class ViewController: UIViewController {
@@ -23,23 +33,21 @@ class ViewController: UIViewController {
     //  Layout constants
     let columnWidth: CGFloat = 40
     let pillHeight: CGFloat = 30
-    let topMargin: CGFloat = 80
+    let topMargin: CGFloat = 60
     let verticalSpacing: CGFloat = 10
     
     @IBOutlet weak var collectionView: UICollectionView!
 
     var dateRange = [Date]()
     var items = [GanttChartItem]()
-    var gantItemViews = [UIView]()
+    var gantItemViews = [(view: GanttItemView, heightConstraint: NSLayoutConstraint)]()
     
     var selectedIndexPath: IndexPath?
-    
-    var topPillConstraint: NSLayoutConstraint?
     
     var currentZoomScale: CGFloat = 1.0 {
         didSet {
             collectionView.collectionViewLayout.invalidateLayout()
-            gantItemViews.forEach( { $0.removeFromSuperview() })
+            gantItemViews.forEach( { $0.view.removeFromSuperview() })
             gantItemViews.removeAll()
             loadItemsIntoView()
         }
@@ -98,6 +106,15 @@ class ViewController: UIViewController {
         items.append(GanttChartItem(startDate: Calendar.current.date(byAdding: .day, value: 1, to: date)!, endDate: Calendar.current.date(byAdding: .day, value: 4, to: date)!, imageName: nil, mainString: "Donald Trump", contentString: "$280, Standard Room"))
         /// Day 5 - 6
         items.append(GanttChartItem(startDate: Calendar.current.date(byAdding: .day, value: 4, to: date)!, endDate: Calendar.current.date(byAdding: .day, value: 6, to: date)!, imageName: nil,mainString: "Ken Watanabe", contentString: "$185, Eye of Sauron Suite"))
+        
+        for _ in 1...10 {
+            let start = Int.random(in: 1...15)
+            let duration = Int.random(in: 1...4)
+            
+            items.append(GanttChartItem(startDate: Calendar.current.date(byAdding: .day, value: start, to: date)!, endDate: Calendar.current.date(byAdding: .day, value: start + duration, to: date)!, imageName: nil, mainString: "Donald Trump", contentString: "$280, Standard Room"))
+        }
+        
+        items.sort()
     }
     
     private func loadItemsIntoView() {
@@ -113,17 +130,19 @@ class ViewController: UIViewController {
             ganttItem.layer.masksToBounds = true
             ganttItem.translatesAutoresizingMaskIntoConstraints = false
             if let previousItem = gantItemViews.last {
-                ganttItem.topAnchor.constraint(equalTo: previousItem.bottomAnchor, constant: verticalSpacing).isActive = true
+                ganttItem.topAnchor.constraint(equalTo: previousItem.view.bottomAnchor, constant: verticalSpacing).isActive = true
             } else {
                 ganttItem.topAnchor.constraint(equalTo: collectionView.topAnchor, constant: topMargin).isActive = true
                 
             }
 
             ganttItem.leadingAnchor.constraint(equalTo: collectionView.leadingAnchor, constant: columnWidth * currentZoomScale * CGFloat(startColumn)).isActive = true
-            ganttItem.heightAnchor.constraint(equalToConstant: pillHeight).isActive = true
+            let heightAnchor = ganttItem.heightAnchor.constraint(equalToConstant: pillHeight)
+            heightAnchor.isActive = true
+            
             ganttItem.widthAnchor.constraint(equalToConstant: columnWidth * currentZoomScale * CGFloat(numDays + 1)).isActive = true
             
-            gantItemViews.append(ganttItem)
+            gantItemViews.append((ganttItem, heightAnchor))
         }
     }
     
