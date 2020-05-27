@@ -17,20 +17,37 @@ struct GanttChartItem {
 }
 
 class ViewController: UIViewController {
+
+    @IBOutlet weak var monthLabel: UILabel!
     
-    @IBOutlet weak var collectionView: UICollectionView!
-    
+    //  Layout constants
     let columnWidth: CGFloat = 40
     let pillHeight: CGFloat = 30
+    let topMargin: CGFloat = 80
+    let verticalSpacing: CGFloat = 10
+    
+    @IBOutlet weak var collectionView: UICollectionView!
+
     var dateRange = [Date]()
     var items = [GanttChartItem]()
     var gantItemViews = [UIView]()
-    let pinchScrollView = UIScrollView()
-    let dummyView = UIView()
     
-    var topViewConstraint: NSLayoutConstraint!
+    var selectedIndexPath: IndexPath?
     
-    var zoomScale: CGFloat?
+    var topPillConstraint: NSLayoutConstraint?
+    
+    var currentZoomScale: CGFloat = 1.0 {
+        didSet {
+            collectionView.collectionViewLayout.invalidateLayout()
+            gantItemViews.forEach( { $0.removeFromSuperview() })
+            gantItemViews.removeAll()
+            loadItemsIntoView()
+        }
+    }
+    var minZoomScale: CGFloat = 0.75
+    var maxZoomScale: CGFloat = 2.0
+    
+    var activePinchScale: CGFloat = 1.0
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -41,38 +58,40 @@ class ViewController: UIViewController {
         collectionView.alwaysBounceVertical = false
         collectionView.alwaysBounceHorizontal = false
         
-        if let flowLayout = collectionView.collectionViewLayout as? UICollectionViewFlowLayout {
-            flowLayout.estimatedItemSize = .zero
-        }
-        
         collectionView.delegate = self
         collectionView.dataSource = self
         
         setupData()
         loadItemsIntoView()
-        //setupZoom()
+        setupZoomGesture()
     }
     
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
+    private func setupZoomGesture() {
+        let gesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinchGesture))
+        gesture.cancelsTouchesInView = false
+        view.isMultipleTouchEnabled = true
+        view.addGestureRecognizer(gesture)
+    }
+    
+    @objc private func handlePinchGesture(sender: UIPinchGestureRecognizer) {
+        if sender.scale > 1 {
+            print("greater")
+            print(sender.scale)
+            let newScale = currentZoomScale + (sender.scale * 0.1)
+            if newScale <= maxZoomScale {
+                currentZoomScale = newScale
+            }
+        } else {
+            let newScale = currentZoomScale - (1 - sender.scale) / 2
+            print(sender.scale)
+            print("less")
+            if newScale >= minZoomScale {
+                currentZoomScale = newScale
+            }
+        }
         
-//        pinchScrollView.contentSize = collectionView.collectionViewLayout.collectionViewContentSize
-//        dummyView.frame = CGRect(origin: .zero, size: collectionView.collectionViewLayout.collectionViewContentSize)
-//        pinchScrollView.frame = collectionView.frame
     }
-    
-    private func setupZoom() {
-        //dummyView.backgroundColor = .gray
-        //dummyView.alpha = 0.5
-        view.addSubview(pinchScrollView)
-        pinchScrollView.addSubview(dummyView)
-        
-        pinchScrollView.minimumZoomScale = 0.5
-        pinchScrollView.maximumZoomScale = 1.5
-        pinchScrollView.bouncesZoom = false
-        pinchScrollView.delegate = self
-    }
-    
+
     private func setupData() {
         let date = Date()
         /// Day 2 - 4
@@ -82,7 +101,7 @@ class ViewController: UIViewController {
     }
     
     private func loadItemsIntoView() {
-        for item in items {
+        for (num, item) in items.enumerated() {
             let startDate = Calendar.current.startOfDay(for: Date())
             let startColumn = Calendar.current.dateComponents([.day], from: startDate, to: item.startDate).day!
             let numDays = Calendar.current.dateComponents([.day], from: item.startDate, to: item.endDate).day!
@@ -93,16 +112,16 @@ class ViewController: UIViewController {
             ganttItem.layer.cornerRadius = pillHeight / 2
             ganttItem.layer.masksToBounds = true
             ganttItem.translatesAutoresizingMaskIntoConstraints = false
-            if let previousItemView = gantItemViews.last {
-                ganttItem.topAnchor.constraint(equalTo: previousItemView.bottomAnchor, constant: 10).isActive = true
+            if let previousItem = gantItemViews.last {
+                ganttItem.topAnchor.constraint(equalTo: previousItem.bottomAnchor, constant: verticalSpacing).isActive = true
             } else {
-                topViewConstraint = ganttItem.topAnchor.constraint(equalTo: collectionView.topAnchor, constant: pillHeight * 2 + 10)
-                topViewConstraint.isActive = true
+                ganttItem.topAnchor.constraint(equalTo: collectionView.topAnchor, constant: topMargin).isActive = true
+                
             }
-            
-            ganttItem.leadingAnchor.constraint(equalTo: collectionView.leadingAnchor, constant: columnWidth * CGFloat(startColumn)).isActive = true
+
+            ganttItem.leadingAnchor.constraint(equalTo: collectionView.leadingAnchor, constant: columnWidth * currentZoomScale * CGFloat(startColumn)).isActive = true
             ganttItem.heightAnchor.constraint(equalToConstant: pillHeight).isActive = true
-            ganttItem.widthAnchor.constraint(equalToConstant: columnWidth * CGFloat(numDays + 1)).isActive = true
+            ganttItem.widthAnchor.constraint(equalToConstant: columnWidth * currentZoomScale * CGFloat(numDays + 1)).isActive = true
             
             gantItemViews.append(ganttItem)
         }
@@ -126,6 +145,9 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "verticalDateCellID", for: indexPath) as! VerticalDateCell
         cell.date = dateRange[indexPath.row]
+        if selectedIndexPath == indexPath {
+            cell.set(selected: true)
+        }
         
         return cell
     }
@@ -133,39 +155,29 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if let cell = collectionView.cellForItem(at: indexPath) as? VerticalDateCell {
             cell.set(selected: true)
+            if let selectedIndexPath = selectedIndexPath, let previousSelectedCell = collectionView.cellForItem(at: selectedIndexPath) as? VerticalDateCell {
+                previousSelectedCell.set(selected: false)
+            }
+            self.selectedIndexPath = indexPath
         }
     }
 }
 
 extension ViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: columnWidth * (zoomScale ?? 1.0), height: collectionView.frame.height)
+        return CGSize(width: columnWidth * currentZoomScale, height: collectionView.frame.height)
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         return 0
     }
-
-}
-
-extension ViewController: UIScrollViewDelegate {
-    func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        guard zoomScale != pinchScrollView.zoomScale else { return }
-        zoomScale = scrollView.zoomScale
-        
-        topViewConstraint.constant = 90
-        
-        collectionView.setNeedsLayout()
-        collectionView.layoutIfNeeded()
-        collectionView.collectionViewLayout.invalidateLayout()
-        collectionView.contentOffset = scrollView.contentOffset
-    }
-    
-    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-        return dummyView
-    }
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        collectionView.contentOffset = scrollView.contentOffset
+        let indexPath = collectionView.indexPathForItem(at: view.convert(view.center, to: collectionView))
+        let middleDate = dateRange[indexPath!.row]
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMM"
+        monthLabel.text = dateFormatter.string(from: middleDate)
     }
+
 }
