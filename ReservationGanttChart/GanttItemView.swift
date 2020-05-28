@@ -7,8 +7,16 @@
 //
 import UIKit
 
+protocol ItemViewDelegate: class {
+    func didTap(item: GanttItemView)
+}
+
 class GanttItemView: UIView {
     
+    @IBOutlet var contentView: UIView!
+    
+    weak var delegate: ItemViewDelegate?
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         
@@ -25,6 +33,19 @@ class GanttItemView: UIView {
         let nibView = loadFromNib()
         nibView.frame = bounds
         addSubview(nibView)
+        
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(itemTapped))
+        contentView.addGestureRecognizer(tapGesture)
+    }
+    
+    @objc private func itemTapped() {
+        delegate?.didTap(item: self)
+    }
+    
+    func set(_ item: GanttChartItem) {
+        if item.state > 9 {
+            contentView.backgroundColor = UIColor(named: "attentionDark")
+        }
     }
 }
 
