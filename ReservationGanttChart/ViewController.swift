@@ -56,6 +56,8 @@ class ViewController: UIViewController {
     var maxZoomScale: CGFloat = 2.0
     
     var activePinchScale: CGFloat = 1.0
+    
+    var hasScrolledInitially = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -74,6 +76,15 @@ class ViewController: UIViewController {
         setupZoomGesture()
     }
     
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        if !hasScrolledInitially {
+            let initialVisibleIndexPath = IndexPath(item: 8, section: 0)
+            collectionView.scrollToItem(at: initialVisibleIndexPath, at: .centeredHorizontally, animated: false)
+            hasScrolledInitially.toggle()
+        }
+    }
+    
     private func setupZoomGesture() {
         let gesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinchGesture))
         gesture.cancelsTouchesInView = false
@@ -83,16 +94,12 @@ class ViewController: UIViewController {
     
     @objc private func handlePinchGesture(sender: UIPinchGestureRecognizer) {
         if sender.scale > 1 {
-            print("greater")
-            print(sender.scale)
             let newScale = currentZoomScale + (sender.scale * 0.1)
             if newScale <= maxZoomScale {
                 currentZoomScale = newScale
             }
         } else {
             let newScale = currentZoomScale - (1 - sender.scale) / 2
-            print(sender.scale)
-            print("less")
             if newScale >= minZoomScale {
                 currentZoomScale = newScale
             }
@@ -107,7 +114,7 @@ class ViewController: UIViewController {
         /// Day 5 - 6
         items.append(GanttChartItem(startDate: Calendar.current.date(byAdding: .day, value: 4, to: date)!, endDate: Calendar.current.date(byAdding: .day, value: 6, to: date)!, imageName: nil,mainString: "Ken Watanabe", contentString: "$185, Eye of Sauron Suite"))
         
-        for _ in 1...10 {
+        for _ in 1...20 {
             let start = Int.random(in: 1...15)
             let duration = Int.random(in: 1...4)
             
@@ -118,7 +125,7 @@ class ViewController: UIViewController {
     }
     
     private func loadItemsIntoView() {
-        for (num, item) in items.enumerated() {
+        for item in items {
             let startDate = Calendar.current.startOfDay(for: Date())
             let startColumn = Calendar.current.dateComponents([.day], from: startDate, to: item.startDate).day!
             let numDays = Calendar.current.dateComponents([.day], from: item.startDate, to: item.endDate).day!
@@ -136,18 +143,18 @@ class ViewController: UIViewController {
                 
             }
 
-            ganttItem.leadingAnchor.constraint(equalTo: collectionView.leadingAnchor, constant: columnWidth * currentZoomScale * CGFloat(startColumn)).isActive = true
+            ganttItem.leadingAnchor.constraint(equalTo: collectionView.leadingAnchor, constant: columnWidth * currentZoomScale * CGFloat(startColumn + 7)).isActive = true
             let heightAnchor = ganttItem.heightAnchor.constraint(equalToConstant: pillHeight)
             heightAnchor.isActive = true
             
-            ganttItem.widthAnchor.constraint(equalToConstant: columnWidth * currentZoomScale * CGFloat(numDays + 1)).isActive = true
+            ganttItem.widthAnchor.constraint(equalToConstant: columnWidth * currentZoomScale * CGFloat(numDays + 1 )).isActive = true
             
             gantItemViews.append((ganttItem, heightAnchor))
         }
     }
     
     private func setupDates() {
-        var date = Date()
+        var date = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
         while dateRange.count < 45 {
             dateRange.append(Calendar.current.startOfDay(for: date))
             date = Calendar.current.date(byAdding: .day, value: 1, to: date)!
@@ -159,6 +166,12 @@ class ViewController: UIViewController {
 extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         dateRange.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        if let cell = cell as? VerticalDateCell {
+            cell.set(selected: selectedIndexPath == indexPath)
+        }
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -178,13 +191,14 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource {
                 previousSelectedCell.set(selected: false)
             }
             self.selectedIndexPath = indexPath
+            collectionView.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: true)
         }
     }
 }
 
 extension ViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: columnWidth * currentZoomScale, height: collectionView.frame.height)
+        return CGSize(width: columnWidth * currentZoomScale, height: collectionView.frame.height * 2)
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
@@ -197,6 +211,10 @@ extension ViewController: UICollectionViewDelegateFlowLayout {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "MMM"
         monthLabel.text = dateFormatter.string(from: middleDate)
+        
+        //  Adjusting vertically visible chips
+        
+        
     }
 
 }
