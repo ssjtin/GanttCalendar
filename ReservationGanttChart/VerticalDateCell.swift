@@ -10,7 +10,7 @@ import UIKit
 
 class VerticalDateCell: UICollectionViewCell {
     
-    var borderColor: UIColor = UIColor(named: "canvasMid")!
+    var borderColor: UIColor = .darkGray
     var borderWidth: CGFloat = 0.5
     var date: Date = Date() {
         didSet {
@@ -38,8 +38,12 @@ class VerticalDateCell: UICollectionViewCell {
         
         backgroundColor = .white
     }
-    func set(selected: Bool) {
-        backgroundColor = selected ? UIColor(named: "grayLightest") : .white
+    func set(selected: Bool, darkModeOn: Bool) {
+        backgroundColor = selected ? UIColor(named: "grayLightest") : darkModeOn ? .black : .white
+        if darkModeOn {
+            dateLabel.textColor = .white
+            dayLabel.textColor = .white
+        }
     }
   
 }

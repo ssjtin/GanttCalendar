@@ -29,7 +29,9 @@ struct GanttChartItem: Comparable {
 
 class ViewController: UIViewController {
 
+    @IBOutlet weak var headerView: UIView!
     @IBOutlet weak var monthLabel: UILabel!
+    @IBOutlet weak var searchIcon: UIImageView!
     
     //  Layout constants
     let columnWidth: CGFloat = 40
@@ -76,6 +78,8 @@ class ViewController: UIViewController {
     var hasScrolledInitially = false
     
     var visibleModalView: UIView?
+    
+    var darkModeOn = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -92,6 +96,13 @@ class ViewController: UIViewController {
         setupData()
         loadItemsIntoView()
         setupZoomGesture()
+        
+        if darkModeOn {
+            headerView.backgroundColor = .black
+            monthLabel.textColor = .white
+            searchIcon.tintColor = .white
+            navigationController?.navigationBar.backgroundColor = .black
+        }
     }
     
     override func viewDidLayoutSubviews() {
@@ -257,7 +268,7 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         if let cell = cell as? VerticalDateCell {
-            cell.set(selected: selectedIndexPath == indexPath)
+            cell.set(selected: selectedIndexPath == indexPath, darkModeOn: darkModeOn)
         }
     }
     
@@ -265,7 +276,7 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "verticalDateCellID", for: indexPath) as! VerticalDateCell
         cell.date = dateRange[indexPath.row]
         if selectedIndexPath == indexPath {
-            cell.set(selected: true)
+            cell.set(selected: true, darkModeOn: darkModeOn)
         }
         
         return cell
@@ -273,9 +284,9 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if let cell = collectionView.cellForItem(at: indexPath) as? VerticalDateCell {
-            cell.set(selected: true)
+            cell.set(selected: true, darkModeOn: darkModeOn)
             if let selectedIndexPath = selectedIndexPath, let previousSelectedCell = collectionView.cellForItem(at: selectedIndexPath) as? VerticalDateCell {
-                previousSelectedCell.set(selected: false)
+                previousSelectedCell.set(selected: false, darkModeOn: darkModeOn)
             }
             self.selectedIndexPath = indexPath
             collectionView.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: true)
@@ -330,26 +341,32 @@ extension ViewController: ItemViewDelegate {
             overlay.addSubview(contentView)
             contentView.frame = overlay.bounds
             contentView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-            contentView.backgroundColor = .white
+            contentView.backgroundColor = self.darkModeOn ? .black : .white
             contentView.layer.cornerRadius = 8
             contentView.alpha = 0
             
             let label = UILabel()
             label.text = "Shirley U Carnbeseerius"
+            if self.darkModeOn { label.textColor = .white }
+            
             label.translatesAutoresizingMaskIntoConstraints = false
             
             let contentLabel = UITextView()
             contentLabel.translatesAutoresizingMaskIntoConstraints = false
             contentLabel.text = "$1890 The Ritz Deluxe Family Room\n\nHere's some extra details and junk"
+            if self.darkModeOn { contentLabel.textColor = .white }
+            contentLabel.backgroundColor = .clear
             
             contentView.addSubview(label)
             contentView.addSubview(contentLabel)
             
-            label.textColor = .black
+            label.textColor = self.darkModeOn ? .white : .black
             label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10).isActive = true
             label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10).isActive = true
             label.heightAnchor.constraint(equalToConstant: 30).isActive = true
             label.widthAnchor.constraint(equalToConstant: 200).isActive = true
+            label.backgroundColor = .clear
+            
             
             contentLabel.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 0).isActive = true
             contentLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10).isActive = true

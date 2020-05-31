@@ -79,7 +79,9 @@
                     <simulatedNavigationBarMetrics key="simulatedTopBarMetrics" barStyle="black" prompted="NO"/>
                     <connections>
                         <outlet property="collectionView" destination="DkT-aE-KL8" id="AX6-U5-5tj"/>
+                        <outlet property="headerView" destination="gxe-9I-P8M" id="a5H-7L-vCL"/>
                         <outlet property="monthLabel" destination="0bB-64-pho" id="kAi-mR-Luz"/>
+                        <outlet property="searchIcon" destination="sSb-d6-h5l" id="WGg-do-XWB"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
